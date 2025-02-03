@@ -136,7 +136,8 @@ def try_remote_fit(f: FuncT) -> FuncT:
             model_info = deserialize(properties)
             client.add_ml_cache(model_info.obj_ref.id)
             model = self._create_model(model_info.obj_ref.id)
-            model._resetUid(self.uid)
+            if model.__class__.__name__ not in ["Bucketizer"]:
+                model._resetUid(self.uid)
             return self._copyValues(model)
         else:
             return f(self, dataset)
@@ -156,9 +157,14 @@ def try_remote_transform_relation(f: FuncT) -> FuncT:
 
             session = dataset.sparkSession
             assert session is not None
+
+            if hasattr(self, "_serialized_ml_params"):
+                params = self._serialized_ml_params
+            else:
+                params = serialize_ml_params(self, session.client)  # type: ignore[arg-type]
+
             # Model is also a Transformer, so we much match Model first
             if isinstance(self, Model):
-                params = serialize_ml_params(self, session.client)
                 from pyspark.ml.connect.proto import TransformerRelation
 
                 assert isinstance(self._java_obj, str)
@@ -169,7 +175,6 @@ def try_remote_transform_relation(f: FuncT) -> FuncT:
                     session,
                 )
             elif isinstance(self, Transformer):
-                params = serialize_ml_params(self, session.client)
                 from pyspark.ml.connect.proto import TransformerRelation
 
                 assert isinstance(self._java_obj, str)

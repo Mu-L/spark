@@ -510,12 +510,12 @@ private[ml] object MLUtils {
       classOf[TreeEnsembleModel[_]],
       Set(
         "predictLeaf",
+        "trees",
         "treeWeights",
         "javaTreeWeights",
         "getNumTrees",
         "totalNumNodes",
-        "toDebugString",
-        "getTree")),
+        "toDebugString")),
     (classOf[DecisionTreeClassificationModel], Set("featureImportances")),
     (classOf[RandomForestClassificationModel], Set("featureImportances", "evaluate")),
     (classOf[GBTClassificationModel], Set("featureImportances", "evaluateEachIteration")),
@@ -602,7 +602,7 @@ private[ml] object MLUtils {
     (classOf[BisectingKMeansSummary], Set("trainingCost")),
     (
       classOf[GaussianMixtureModel],
-      Set("predict", "numFeatures", "weights", "gaussians", "predictProbability", "gaussiansDF")),
+      Set("predict", "numFeatures", "weights", "predictProbability", "gaussiansDF")),
     (classOf[GaussianMixtureSummary], Set("probability", "probabilityCol", "logLikelihood")),
     (
       classOf[LDAModel],
@@ -634,6 +634,7 @@ private[ml] object MLUtils {
     (classOf[FPGrowthModel], Set("associationRules", "freqItemsets")),
 
     // Feature Models
+    (classOf[Bucketizer], Set("getSplits", "getSplitsArray")),
     (classOf[ImputerModel], Set("surrogateDF")),
     (classOf[StandardScalerModel], Set("mean", "std")),
     (classOf[MaxAbsScalerModel], Set("maxAbs")),
