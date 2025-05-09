@@ -366,7 +366,7 @@ private[spark] object PythonRDD extends Logging {
     val kc = Utils.classForName[K](keyClass)
     val vc = Utils.classForName[V](valueClass)
     val rdd = sc.sc.sequenceFile[K, V](path, kc, vc, minSplits)
-    val confBroadcasted = sc.sc.broadcast(new SerializableConfiguration(sc.hadoopConfiguration()))
+    val confBroadcasted = SerializableConfiguration.broadcast(sc.sc, sc.hadoopConfiguration())
     val converted = convertRDD(rdd, keyConverterClass, valueConverterClass,
       new WritableToJavaConverter(confBroadcasted))
     JavaRDD.fromRDD(SerDeUtil.pairRDDToPython(converted, batchSize))
@@ -392,7 +392,7 @@ private[spark] object PythonRDD extends Logging {
     val rdd =
       newAPIHadoopRDDFromClassNames[K, V, F](sc,
         Some(path), inputFormatClass, keyClass, valueClass, mergedConf)
-    val confBroadcasted = sc.sc.broadcast(new SerializableConfiguration(mergedConf))
+    val confBroadcasted = SerializableConfiguration.broadcast(sc.sc, mergedConf)
     val converted = convertRDD(rdd, keyConverterClass, valueConverterClass,
       new WritableToJavaConverter(confBroadcasted))
     JavaRDD.fromRDD(SerDeUtil.pairRDDToPython(converted, batchSize))
@@ -418,7 +418,7 @@ private[spark] object PythonRDD extends Logging {
     val rdd =
       newAPIHadoopRDDFromClassNames[K, V, F](sc,
         None, inputFormatClass, keyClass, valueClass, conf)
-    val confBroadcasted = sc.sc.broadcast(new SerializableConfiguration(conf))
+    val confBroadcasted = SerializableConfiguration.broadcast(sc.sc, conf)
     val converted = convertRDD(rdd, keyConverterClass, valueConverterClass,
       new WritableToJavaConverter(confBroadcasted))
     JavaRDD.fromRDD(SerDeUtil.pairRDDToPython(converted, batchSize))
@@ -461,7 +461,7 @@ private[spark] object PythonRDD extends Logging {
     val rdd =
       hadoopRDDFromClassNames[K, V, F](sc,
         Some(path), inputFormatClass, keyClass, valueClass, mergedConf)
-    val confBroadcasted = sc.sc.broadcast(new SerializableConfiguration(mergedConf))
+    val confBroadcasted = SerializableConfiguration.broadcast(sc.sc, mergedConf)
     val converted = convertRDD(rdd, keyConverterClass, valueConverterClass,
       new WritableToJavaConverter(confBroadcasted))
     JavaRDD.fromRDD(SerDeUtil.pairRDDToPython(converted, batchSize))
@@ -487,7 +487,7 @@ private[spark] object PythonRDD extends Logging {
     val rdd =
       hadoopRDDFromClassNames[K, V, F](sc,
         None, inputFormatClass, keyClass, valueClass, conf)
-    val confBroadcasted = sc.sc.broadcast(new SerializableConfiguration(conf))
+    val confBroadcasted = SerializableConfiguration.broadcast(sc.sc, conf)
     val converted = convertRDD(rdd, keyConverterClass, valueConverterClass,
       new WritableToJavaConverter(confBroadcasted))
     JavaRDD.fromRDD(SerDeUtil.pairRDDToPython(converted, batchSize))
@@ -745,11 +745,12 @@ private[spark] class PythonAccumulatorV2(
     if (socket == null || !socket.isOpen) {
       if (isUnixDomainSock) {
         socket = SocketChannel.open(UnixDomainSocketAddress.of(socketPath.get))
-        logInfo(log"Connected to AccumulatorServer at socket: ${MDC(SOCKET_ADDRESS, serverHost)}")
+        logInfo(
+          log"Connected to AccumulatorServer at socket: ${MDC(SOCKET_ADDRESS, socketPath.get)}")
       } else {
         socket = SocketChannel.open(new InetSocketAddress(serverHost.get, serverPort.get))
-        logInfo(log"Connected to AccumulatorServer at host: ${MDC(HOST, serverHost)}" +
-          log" port: ${MDC(PORT, serverPort)}")
+        logInfo(log"Connected to AccumulatorServer at host: ${MDC(HOST, serverHost.get)}" +
+          log" port: ${MDC(PORT, serverPort.get)}")
       }
       // send the secret just for the initial authentication when opening a new connection
       secretToken.foreach { token =>

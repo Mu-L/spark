@@ -686,7 +686,7 @@ class SparkConnectClient(object):
         self._progress_handlers: List[ProgressHandler] = []
 
         # cleanup ml cache if possible
-        atexit.register(self._cleanup_ml)
+        atexit.register(self._cleanup_ml_cache)
 
     @property
     def _stub(self) -> grpc_lib.SparkConnectServiceStub:
@@ -1975,20 +1975,6 @@ class SparkConnectClient(object):
         profile_id = properties["create_resource_profile_command_result"]
         return profile_id
 
-    def add_ml_cache(self, cache_id: str) -> None:
-        if not hasattr(self.thread_local, "ml_caches"):
-            self.thread_local.ml_caches = set()
-        self.thread_local.ml_caches.add(cache_id)
-
-    def remove_ml_cache(self, cache_id: str) -> None:
-        if not hasattr(self.thread_local, "ml_caches"):
-            self.thread_local.ml_caches = set()
-
-        if cache_id in self.thread_local.ml_caches:
-            deleted = self._delete_ml_cache([cache_id])
-            for obj_id in deleted:
-                self.thread_local.ml_caches.remove(obj_id)
-
     def _delete_ml_cache(self, cache_ids: List[str]) -> List[str]:
         # try best to delete the cache
         try:
@@ -2009,11 +1995,23 @@ class SparkConnectClient(object):
         except Exception:
             return []
 
-    def _cleanup_ml(self) -> None:
-        if not hasattr(self.thread_local, "ml_caches"):
-            self.thread_local.ml_caches = set()
+    def _cleanup_ml_cache(self) -> None:
+        try:
+            command = pb2.Command()
+            command.ml_command.clean_cache.SetInParent()
+            self.execute_command(command)
+        except Exception:
+            pass
 
-        self.disable_reattachable_execute()
-        deleted = self._delete_ml_cache(list(self.thread_local.ml_caches))
-        for obj_id in deleted:
-            self.thread_local.ml_caches.remove(obj_id)
+    def _get_ml_cache_info(self) -> List[str]:
+        command = pb2.Command()
+        command.ml_command.get_cache_info.SetInParent()
+        (_, properties, _) = self.execute_command(command)
+
+        assert properties is not None
+
+        if properties is not None and "ml_command_result" in properties:
+            ml_command_result = properties["ml_command_result"]
+            return [item.string for item in ml_command_result.param.array.elements]
+
+        return []

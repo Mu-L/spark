@@ -167,9 +167,14 @@ class ArrowStreamUDFSerializer(ArrowStreamSerializer):
                 assert isinstance(batch, pa.RecordBatch)
 
                 # Wrap the root struct
-                struct = pa.StructArray.from_arrays(
-                    batch.columns, fields=pa.struct(list(batch.schema))
-                )
+                if len(batch.columns) == 0:
+                    # When batch has no column, it should still create
+                    # an empty batch with the number of rows set.
+                    struct = pa.array([{}] * batch.num_rows)
+                else:
+                    struct = pa.StructArray.from_arrays(
+                        batch.columns, fields=pa.struct(list(batch.schema))
+                    )
                 batch = pa.RecordBatch.from_arrays([struct], ["_0"])
 
                 # Write the first record batch with initialization.
@@ -179,6 +184,15 @@ class ArrowStreamUDFSerializer(ArrowStreamSerializer):
                 yield batch
 
         return super(ArrowStreamUDFSerializer, self).dump_stream(wrap_and_init_stream(), stream)
+
+
+class ArrowStreamUDTFSerializer(ArrowStreamUDFSerializer):
+    """
+    Same as :class:`ArrowStreamUDFSerializer` but it does not flatten when loading batches.
+    """
+
+    def load_stream(self, stream):
+        return ArrowStreamSerializer.load_stream(self, stream)
 
 
 class ArrowStreamGroupUDFSerializer(ArrowStreamUDFSerializer):
@@ -1421,7 +1435,7 @@ class TransformWithStateInPySparkRowSerializer(ArrowStreamUDFSerializer):
             same time. And data chunks from the same grouping key should appear sequentially.
             """
             for batch in batches:
-                DataRow = Row(*(batch.column_names))
+                DataRow = Row(*(batch.schema.names))
 
                 # This is supposed to be the same.
                 batch_key = tuple(batch[o][0].as_py() for o in self.key_offsets)
@@ -1462,7 +1476,7 @@ class TransformWithStateInPySparkRowSerializer(ArrowStreamUDFSerializer):
                     row_as_dict = row.asDict(True)
                     rows_as_dict.append(row_as_dict)
 
-                pdf_schema = pa.schema(pdf_type.fields)
+                pdf_schema = pa.schema(list(pdf_type))
                 record_batch = pa.RecordBatch.from_pylist(rows_as_dict, schema=pdf_schema)
 
                 yield (record_batch, pdf_type)

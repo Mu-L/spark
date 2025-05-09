@@ -84,7 +84,7 @@ object CTESubstitution extends Rule[LogicalPlan] {
 
     val cteDefs = ArrayBuffer.empty[CTERelationDef]
     val (substituted, firstSubstituted) =
-      LegacyBehaviorPolicy.withName(conf.getConf(LEGACY_CTE_PRECEDENCE_POLICY)) match {
+      conf.getConf(LEGACY_CTE_PRECEDENCE_POLICY) match {
         case LegacyBehaviorPolicy.EXCEPTION =>
           assertNoNameConflictsInCTE(plan)
           traverseAndSubstituteCTE(plan, forceInline, Seq.empty, cteDefs, None)
@@ -408,7 +408,7 @@ object CTESubstitution extends Rule[LogicalPlan] {
       recursiveCTERelation: Option[(String, CTERelationDef)]): LogicalPlan = {
     plan.resolveOperatorsUpWithPruning(
         _.containsAnyPattern(RELATION_TIME_TRAVEL, UNRESOLVED_RELATION, PLAN_EXPRESSION,
-          UNRESOLVED_IDENTIFIER)) {
+          UNRESOLVED_IDENTIFIER, PLAN_WITH_UNRESOLVED_IDENTIFIER)) {
       case RelationTimeTravel(UnresolvedRelation(Seq(table), _, _), _, _)
         if cteRelations.exists(r => plan.conf.resolver(r._1, table)) =>
         throw QueryCompilationErrors.timeTravelUnsupportedError(toSQLId(table))
