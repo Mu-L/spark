@@ -162,12 +162,6 @@
     ],
     "sqlState" : "22003"
   },
-  "BOOLEAN_STATEMENT_WITH_EMPTY_ROW" : {
-    "message" : [
-      "Boolean statement <invalidStatement> is invalid. Expected single row with a value of the BOOLEAN type, but got an empty row."
-    ],
-    "sqlState" : "21000"
-  },
   "CALL_ON_STREAMING_DATASET_UNSUPPORTED" : {
     "message" : [
       "The method <methodName> can not be called on streaming Dataset/DataFrame."
@@ -2386,6 +2380,12 @@
     ],
     "sqlState" : "42601"
   },
+  "INVALID_BUCKET_COUNT" : {
+    "message" : [
+      "Number of buckets should be greater than 0 but less than or equal to bucketing.maxBuckets (`<bucketingMaxBuckets>`). Got `<numBuckets>`."
+    ],
+    "sqlState" : "22003"
+  },
   "INVALID_BUCKET_FILE" : {
     "message" : [
       "Invalid bucket file: <path>."
@@ -3426,6 +3426,12 @@
     ],
     "sqlState" : "42602"
   },
+  "INVALID_SCHEMA_TYPE_NON_STRUCT" : {
+    "message" : [
+      "Invalid schema type. Expect a struct type, but got <dataType>."
+    ],
+    "sqlState" : "42K09"
+  },
   "INVALID_SET_SYNTAX" : {
     "message" : [
       "Expected format is 'SET', 'SET key', or 'SET key=value'. If you want to include special characters in key, or include semicolon in value, please use backquotes, e.g., SET `key`=`value`."
@@ -3871,6 +3877,24 @@
       "PARTITION_SIZE_WITH_UNSPECIFIED_DISTRIBUTION" : {
         "message" : [
           "The advisory partition size can't be specified with unspecified distribution."
+        ]
+      }
+    },
+    "sqlState" : "42000"
+  },
+  "JDBC_EXTERNAL_ENGINE_SYNTAX_ERROR" : {
+    "message" : [
+      "JDBC external engine syntax error. The error was caused by the query <jdbcQuery>."
+    ],
+    "subClass" : {
+      "DURING_OUTPUT_SCHEMA_RESOLUTION" : {
+        "message" : [
+          "The error occurred during output schema resolution."
+        ]
+      },
+      "DURING_QUERY_EXECUTION" : {
+        "message" : [
+          "The error occurred during query execution."
         ]
       }
     },
@@ -5858,6 +5882,16 @@
           "CONTINUE exception handler is not supported. Use EXIT handler."
         ]
       },
+      "CREATE_FLOW_QUERY_EXECUTION" : {
+        "message" : [
+          "Direct execution of a CREATE FLOW statement is not supported. To create a flow, create and execute a pipeline with a SQL file containing your statement attached in the pipeline spec."
+        ]
+      },
+      "CREATE_PIPELINE_DATASET_QUERY_EXECUTION" : {
+        "message" : [
+          "Direct execution of a CREATE ... <pipelineDatasetType> query. To create a pipeline dataset, create and execute a pipeline with a SQL file containing your query attached in the pipeline definition."
+        ]
+      },
       "DESC_TABLE_COLUMN_JSON" : {
         "message" : [
           "DESC TABLE COLUMN AS JSON not supported for individual columns."
@@ -6028,6 +6062,11 @@
       "REPLACE_NESTED_COLUMN" : {
         "message" : [
           "The replace function does not support nested column <colName>."
+        ]
+      },
+      "SCHEMA_LEVEL_COLLATIONS" : {
+        "message" : [
+          "Default collation for the specified schema."
         ]
       },
       "SET_NAMESPACE_PROPERTY" : {
@@ -6330,6 +6369,12 @@
       "<outputMode> output mode not supported for <statefulOperator> on streaming DataFrames/DataSets without watermark."
     ],
     "sqlState" : "0A000"
+  },
+  "UNSUPPORTED_STREAMING_TABLE_VALUED_FUNCTION" : {
+    "message" : [
+      "The function <funcName> does not support streaming. Please remove the STREAM keyword"
+    ],
+    "sqlState" : "42000"
   },
   "UNSUPPORTED_SUBQUERY_EXPRESSION_CATEGORY" : {
     "message" : [
@@ -6995,11 +7040,6 @@
   "_LEGACY_ERROR_TEMP_1082" : {
     "message" : [
       "Partition [<specString>] did not specify locationUri."
-    ]
-  },
-  "_LEGACY_ERROR_TEMP_1083" : {
-    "message" : [
-      "Number of buckets should be greater than 0 but less than or equal to bucketing.maxBuckets (`<bucketingMaxBuckets>`). Got `<numBuckets>`."
     ]
   },
   "_LEGACY_ERROR_TEMP_1089" : {

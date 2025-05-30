@@ -773,7 +773,7 @@ class SparkConnectPlanner(
       val stateSchema = DataTypeProtoConverter.toCatalystType(rel.getStateSchema) match {
         case s: StructType => s
         case other =>
-          throw InvalidInputErrors.invalidStateSchemaDataType(other)
+          throw InvalidInputErrors.invalidSchemaTypeNonStruct(other)
       }
       val stateEncoder = TypedScalaUdf.encoderFor(
         // the state agnostic encoder is the second element in the input encoders.
@@ -1105,8 +1105,7 @@ class SparkConnectPlanner(
       transformDataType(twsInfo.getOutputSchema) match {
         case s: StructType => s
         case dt =>
-          throw InvalidInputErrors.invalidUserDefinedOutputSchemaTypeForTransformWithState(
-            dt.typeName)
+          throw InvalidInputErrors.invalidSchemaTypeNonStruct(dt)
       }
     }
 
@@ -1502,7 +1501,7 @@ class SparkConnectPlanner(
       StructType.fromDDL,
       fallbackParser = DataType.fromJson) match {
       case s: StructType => s
-      case other => throw InvalidInputErrors.invalidSchema(other)
+      case other => throw InvalidInputErrors.invalidSchemaStringNonStructType(schema, other)
     }
   }
 
@@ -1580,7 +1579,7 @@ class SparkConnectPlanner(
       if (rel.hasSchema) {
         DataTypeProtoConverter.toCatalystType(rel.getSchema) match {
           case s: StructType => reader.schema(s)
-          case other => throw InvalidInputErrors.invalidSchemaDataType(other)
+          case other => throw InvalidInputErrors.invalidSchemaTypeNonStruct(other)
         }
       }
       localMap.foreach { case (key, value) => reader.option(key, value) }
@@ -2457,11 +2456,13 @@ class SparkConnectPlanner(
         input
       }
 
-    val groupingExpressionsWithOrdinals = rel.getGroupingExpressionsList.asScala.toSeq
-      .map(transformGroupingExpressionAndReplaceOrdinals)
+    val groupingExpressions =
+      rel.getGroupingExpressionsList.asScala.toSeq.map(transformExpression)
+    val groupingExpressionsWithOrdinals =
+      groupingExpressions.map(replaceOrdinalsInGroupingExpressions)
     val aggExprs = rel.getAggregateExpressionsList.asScala.toSeq
       .map(expr => transformExpressionWithTypedReduceExpression(expr, logicalPlan))
-    val aliasedAgg = (groupingExpressionsWithOrdinals ++ aggExprs).map(toNamedExpression)
+    val aliasedAgg = (groupingExpressions ++ aggExprs).map(toNamedExpression)
 
     rel.getGroupType match {
       case proto.Aggregate.GroupType.GROUP_TYPE_GROUPBY =>
@@ -2506,7 +2507,10 @@ class SparkConnectPlanner(
         val groupingSetsExpressionsWithOrdinals =
           rel.getGroupingSetsList.asScala.toSeq.map { getGroupingSets =>
             getGroupingSets.getGroupingSetList.asScala.toSeq
-              .map(transformGroupingExpressionAndReplaceOrdinals)
+              .map(groupingExpressions => {
+                val transformedGroupingExpression = transformExpression(groupingExpressions)
+                replaceOrdinalsInGroupingExpressions(transformedGroupingExpression)
+              })
           }
         logical.Aggregate(
           groupingExpressions = Seq(
@@ -2521,18 +2525,15 @@ class SparkConnectPlanner(
   }
 
   /**
-   * Transforms an input protobuf grouping expression into the Catalyst expression and converts
-   * top-level integer [[Literal]]s to [[UnresolvedOrdinal]]s, if `groupByOrdinal` is enabled.
+   * Replaces top-level integer [[Literal]]s to [[UnresolvedOrdinal]]s, if `groupByOrdinal` is
+   * enabled.
    */
-  private def transformGroupingExpressionAndReplaceOrdinals(
-      groupingExpression: proto.Expression) = {
-    val transformedGroupingExpression = transformExpression(groupingExpression)
+  private def replaceOrdinalsInGroupingExpressions(groupingExpression: Expression) =
     if (session.sessionState.conf.groupByOrdinal) {
-      replaceIntegerLiteralWithOrdinal(transformedGroupingExpression)
+      replaceIntegerLiteralWithOrdinal(groupingExpression)
     } else {
-      transformedGroupingExpression
+      groupingExpression
     }
-  }
 
   @deprecated("TypedReduce is now implemented using a normal UDAF aggregator.", "4.0.0")
   private def transformTypedReduceExpression(
@@ -2965,8 +2966,7 @@ class SparkConnectPlanner(
     val returnType = if (udtf.hasReturnType) {
       transformDataType(udtf.getReturnType) match {
         case s: StructType => Some(s)
-        case dt =>
-          throw InvalidInputErrors.invalidPythonUdtfReturnType(dt.typeName)
+        case dt => throw InvalidInputErrors.invalidSchemaTypeNonStruct(dt)
       }
     } else {
       None
@@ -3077,9 +3077,6 @@ class SparkConnectPlanner(
     if (writeOperation.hasBucketBy) {
       val op = writeOperation.getBucketBy
       val cols = op.getBucketColumnNamesList.asScala
-      if (op.getNumBuckets <= 0) {
-        throw InvalidInputErrors.invalidBucketCount(op.getNumBuckets)
-      }
       w.bucketBy(op.getNumBuckets, cols.head, cols.tail.toSeq: _*)
     }
 
